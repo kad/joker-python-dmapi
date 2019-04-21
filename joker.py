@@ -6,17 +6,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import requests
 import os
 import re
 import sys
 from pprint import pprint
+import requests
 
 
-class Joker(object):
-    def __init__(
-        self, api_key="", username="", password="", url="https://dmapi.joker.com"
-    ):
+class Joker():
+    def __init__(self, api_key="", username="", password="", url="https://dmapi.joker.com"):
         if not api_key and not (username and password):
             raise ValueError("api_key or username/password must be defined")
         self.api_key = api_key
@@ -125,16 +123,16 @@ class Joker(object):
         if self.__session:
             return
         _needed_headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "User-Agent": "Joker python DMAPI",
             "Referer": "dmapi.joker.com",
+            # "Accept": "application/json, text/javascript, */*; q=0.01",
         }
         session = requests.Session()
         session.headers.update(_needed_headers)
         self.__session = session
 
     def __update_account_info(self, headers):
-        IMPORTANT = [
+        important_headers = [
             "Account-balance",
             "Account-contract_date",
             "Account-currency",
@@ -143,7 +141,7 @@ class Joker(object):
             "User-Access",
             "User-Login",
         ]
-        for key in IMPORTANT:
+        for key in important_headers:
             if key in headers:
                 self.account_info[key] = headers[key]
 
@@ -200,7 +198,7 @@ class Joker(object):
         return self.dns_zone_put(domain, zone)
 
 
-class JokerResponse(object):
+class JokerResponse():
     def __init__(self, message):
         self.headers = {}
         self.body = ""
