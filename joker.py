@@ -13,7 +13,7 @@ from pprint import pprint
 import requests
 
 
-class Joker():
+class Joker:
     def __init__(self, api_key="", username="", password="", url="https://dmapi.joker.com"):
         if not api_key and not (username and password):
             raise ValueError("api_key or username/password must be defined")
@@ -107,7 +107,7 @@ class Joker():
             # pylint: disable=E1101
             if response.status_code != requests.codes.ok:
                 raise IOError(
-                    "HTTP Status Code: %s %s" % (response.status_code, response.text)
+                    "HTTP-Status-Code: %s\n%s" % (response.status_code, response.text)
                 )
             return response.text
         except requests.ConnectionError as e:
@@ -198,7 +198,7 @@ class Joker():
         return self.dns_zone_put(domain, zone)
 
 
-class JokerResponse():
+class JokerResponse:
     def __init__(self, message):
         self.headers = {}
         self.body = ""
@@ -260,6 +260,7 @@ def usage():
     %(prg)s: present <FQDN> <record>
     %(prg)s: cleanup <FQDN> <record>
     %(prg)s: get-zone <domain>
+    %(prg)s: put-zone <domain> <zone-file>
 
     Invoked with: %(args)s
     """ % {
@@ -278,7 +279,7 @@ if __name__ == "__main__":
         usage()
 
     mode = sys.argv[1]
-    if mode not in ("info", "present", "cleanup", "get-zone", "test"):
+    if mode not in ("info", "present", "cleanup", "get-zone", "put-zone", "test"):
         raise SystemExit("Invalid mode %s" % mode)
 
     key = os.getenv("JOKER_API_KEY")
@@ -310,10 +311,13 @@ if __name__ == "__main__":
                 "Adding record '%s' with value '%s' to domain '%s'"
                 % (record, value, domain)
             )
-            resp = dmapi.add_txt_record(domain, record, value)
-            code, text = resp.status()
-            if code != 0:
-                err = text + "\n" + str(resp.headers)
+            try:
+                resp = dmapi.add_txt_record(domain, record, value)
+                code, text = resp.status()
+                if code != 0:
+                    err = text + "\n" + str(resp.headers)
+            except IOError as e:
+                err = "Error adding TXT entry:\n" + str(e)
     elif mode == "cleanup" and argc == 4:
         entry = sys.argv[2]
         value = sys.argv[3]
@@ -323,10 +327,13 @@ if __name__ == "__main__":
                 "Removing record '%s' with value '%s' to domain '%s'"
                 % (record, value, domain)
             )
-            resp = dmapi.remove_txt_record(domain, record)
-            code, text = resp.status()
-            if code != 0:
-                err = text + "\n" + str(resp.headers)
+            try:
+                resp = dmapi.remove_txt_record(domain, record)
+                code, text = resp.status()
+                if code != 0:
+                    err = text + "\n" + str(resp.headers)
+            except IOError as e:
+                err = "Error removing TXT entry:\n" + str(e)
     elif mode == "get-zone" and argc == 3:
         rzg = dmapi.dns_zone_get(sys.argv[2])
         code, text = rzg.status()
@@ -334,6 +341,24 @@ if __name__ == "__main__":
             print(rzg.body)
         else:
             err = text
+    elif mode == "put-zone" and argc == 4:
+        zone = ""
+        if os.path.exists(sys.argv[3]) and os.path.isfile(sys.argv[3]):
+            zone = open(sys.argv[3], "r").read().strip()
+        else:
+            err = "File %s either doesn't exist or not a regular file" % sys.argv[3]
+        if zone:
+            try:
+                rzg = dmapi.dns_zone_put(sys.argv[2], zone)
+                code, text = rzg.status()
+                if code == 0:
+                    print(rzg.body)
+                else:
+                    err = text
+            except IOError as e:
+                err = "Error while submitting zone:\n" + str(e)
+        else:
+            err = "Zone is empty"
     elif mode == "test":
         pass
     else:
