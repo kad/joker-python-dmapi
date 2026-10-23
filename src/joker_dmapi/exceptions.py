@@ -27,3 +27,7 @@ class JokerAPIError(JokerError):
 
 class JokerAuthError(JokerAPIError):
     """Login failed."""
+
+
+class JokerBackupError(JokerError):
+    """A zone backup could not be written, so the zone was left unchanged."""

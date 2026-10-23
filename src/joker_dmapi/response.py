@@ -6,10 +6,28 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import NamedTuple
 
 _OK_CODES = frozenset({0, *range(1000, 2000)})
+_PROTOCOL_HEADERS = frozenset(
+    {
+        "status-code",
+        "status-text",
+        "tracking-id",
+        "result",
+        "error",
+        "warning",
+        "proc-id",
+        "auth-sid",
+        "separator",
+        "columns",
+        "row-count",
+        "svtrid",
+        "timing",
+    }
+)
 _HEADER_SPLIT = re.compile(r"\s*:\s*")
 
 
@@ -58,13 +76,30 @@ class JokerResponse:
         return self.body.splitlines()
 
     def as_rows(self) -> list[list[str]]:
-        """Body lines split by the response's Separator (TAB or a space)."""
-        sep = "\t" if self.headers.get("Separator") == "TAB" else " "
-        return [line.split(sep) for line in self.body.splitlines()]
+        """Body lines split into fields.
 
-    def as_dicts(self) -> list[dict[str, str]]:
-        """Rows keyed by the names in the Columns header; empty without that header."""
-        if "Columns" not in self.headers:
-            return []
-        columns = self.headers["Columns"].split(",")
-        return [dict(zip(columns, row, strict=False)) for row in self.as_rows()]
+        Fields are tab separated when the Separator header says TAB or the line holds a tab
+        (empty fields are kept), otherwise they are split on whitespace.
+        """
+        tab = self.headers.get("Separator") == "TAB"
+        return [line.split("\t") if tab or "\t" in line else line.split() for line in self.body.splitlines()]
+
+    def as_table(self, default_columns: Sequence[str] = ()) -> list[dict[str, str]]:
+        """Rows keyed by the Columns header, or by ``default_columns`` when the header is absent.
+
+        Fields beyond the known column names are keyed ``col<N>``.
+        """
+        columns = self.headers["Columns"].split(",") if "Columns" in self.headers else list(default_columns)
+        return [
+            {columns[i] if i < len(columns) else f"col{i + 1}": value for i, value in enumerate(row)}
+            for row in self.as_rows()
+        ]
+
+    def as_dict(self) -> dict[str, str]:
+        """``key: value`` pairs from the body, over any non-protocol headers."""
+        result = {k: v for k, v in self.headers.items() if k.lower() not in _PROTOCOL_HEADERS}
+        for line in self.body.splitlines():
+            key, sep, value = line.partition(":")
+            if sep:
+                result[key.strip()] = value.strip()
+        return result

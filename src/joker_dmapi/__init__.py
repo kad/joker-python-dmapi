@@ -5,10 +5,11 @@
 
 from importlib.metadata import PackageNotFoundError, version
 
-from .client import Joker, Zone, split_fqdn
+from .client import DOMAIN_PROPERTIES, AccountBalance, Joker, Zone, split_fqdn
 from .exceptions import (
     JokerAPIError,
     JokerAuthError,
+    JokerBackupError,
     JokerConnectionError,
     JokerError,
 )
@@ -20,9 +21,12 @@ except PackageNotFoundError:  # not installed
     __version__ = "0+unknown"
 
 __all__ = [
+    "DOMAIN_PROPERTIES",
+    "AccountBalance",
     "Joker",
     "JokerAPIError",
     "JokerAuthError",
+    "JokerBackupError",
     "JokerConnectionError",
     "JokerError",
     "JokerResponse",

@@ -1,10 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2019-2026 Alexander D. Kanevskiy <kad@blackcatlinux.com>
 
+from pathlib import Path
+
 import pytest
 import responses
 
-from joker_dmapi import Joker, JokerAPIError, JokerAuthError, JokerConnectionError, split_fqdn
+from joker_dmapi import (
+    Joker,
+    JokerAPIError,
+    JokerAuthError,
+    JokerBackupError,
+    JokerConnectionError,
+    split_fqdn,
+)
 
 from .conftest import BASE, LOGIN_OK, reply, url
 
@@ -148,6 +157,63 @@ def test_remove_txt_tolerates_trailing_space_in_value(client: Joker, mocked: res
     mocked.get(f"{BASE}/dns-zone-get", body=reply('@ A 0 1.2.3.4 300\n_a TXT 0 "v " 60'))
     mocked.post(f"{BASE}/dns-zone-put", body=reply())
     assert client.remove_txt_record("example.com", "_a", "v")
+
+
+def _backup_client(tmp_path: Path) -> Joker:
+    return Joker(api_key="k", backup_dir=tmp_path / "bk")
+
+
+def test_put_saves_backup_first(mocked: responses.RequestsMock, tmp_path: Path) -> None:
+    mocked.post(f"{BASE}/login", body=LOGIN_OK)
+    mocked.get(f"{BASE}/dns-zone-get", body=reply(ZONE))
+    mocked.post(f"{BASE}/dns-zone-put", body=reply())
+    j = _backup_client(tmp_path)
+    j.login()
+    j.dns_zone_put("example.com", "@ A 0 9.9.9.9 300")
+    (saved,) = (tmp_path / "bk").glob("example.com-*.zone")
+    assert saved.read_text().strip() == ZONE.strip()
+    assert saved.stat().st_mode & 0o777 == 0o600
+    assert (tmp_path / "bk").stat().st_mode & 0o777 == 0o700
+    # the backup was taken before the write
+    assert [url(c).split("?")[0].rsplit("/", 1)[1] for c in mocked.calls][-2:] == [
+        "dns-zone-get",
+        "dns-zone-put",
+    ]
+
+
+def test_txt_edit_backs_up_without_extra_fetch(mocked: responses.RequestsMock, tmp_path: Path) -> None:
+    mocked.post(f"{BASE}/login", body=LOGIN_OK)
+    mocked.get(f"{BASE}/dns-zone-get", body=reply(ZONE))
+    mocked.post(f"{BASE}/dns-zone-put", body=reply())
+    j = _backup_client(tmp_path)
+    j.login()
+    j.add_txt_record("example.com", "_acme-challenge", "three")
+    assert sum(url(c).split("?")[0].endswith("dns-zone-get") for c in mocked.calls) == 1
+    assert len(list((tmp_path / "bk").glob("*.zone"))) == 1
+
+
+def test_backup_failure_blocks_write(mocked: responses.RequestsMock, tmp_path: Path) -> None:
+    mocked.post(f"{BASE}/login", body=LOGIN_OK)
+    mocked.get(f"{BASE}/dns-zone-get", body=reply(ZONE))
+    blocker = tmp_path / "file"
+    blocker.write_text("x")
+    j = Joker(api_key="k", backup_dir=blocker / "sub")
+    j.login()
+    with pytest.raises(JokerBackupError):
+        j.dns_zone_put("example.com", "@ A 0 9.9.9.9 300")
+    assert all(not url(c).endswith("dns-zone-put") for c in mocked.calls)
+
+
+def test_backup_filename_is_sanitized(mocked: responses.RequestsMock, tmp_path: Path) -> None:
+    j = _backup_client(tmp_path)
+    path = j.backup_zone("../evil/x", "z")
+    assert path.parent == tmp_path / "bk"
+
+
+def test_include_defaults(client: Joker, mocked: responses.RequestsMock) -> None:
+    mocked.get(f"{BASE}/dns-zone-get", body=reply(ZONE))
+    client.dns_zone_get("example.com", include_defaults=True)
+    assert "include-defaults=1" in url(mocked.calls[-1])
 
 
 def test_redirect_is_an_error(mocked: responses.RequestsMock) -> None:

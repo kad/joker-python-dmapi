@@ -33,11 +33,11 @@ def test_rows_tab_and_dicts() -> None:
         "Separator: TAB\nColumns: domain,expiration\n\na.com\t2030-01-01\nb.com\t2031-01-01"
     )
     assert r.as_rows()[1] == ["b.com", "2031-01-01"]
-    assert r.as_dicts()[0] == {"domain": "a.com", "expiration": "2030-01-01"}
+    assert r.as_table()[0] == {"domain": "a.com", "expiration": "2030-01-01"}
 
 
-def test_dicts_without_columns() -> None:
-    assert JokerResponse.parse("Status-Code: 0\n\na b").as_dicts() == []
+def test_table_without_columns() -> None:
+    assert JokerResponse.parse("Status-Code: 0\n\na b").as_table() == [{"col1": "a", "col2": "b"}]
 
 
 def test_ok_codes() -> None:
@@ -50,3 +50,11 @@ def test_ok_codes() -> None:
     assert not ok(2000)
     assert not ok(1)
     assert not ok(-1)
+
+
+def test_as_dict_leaves_out_protocol_headers() -> None:
+    raw = (
+        "Status-Code: 0\nStatus-Text: OK\nSvTrId: abc\nTracking-Id: abc\n"
+        "Timing: 0.005/0.12 4.7%\n\nwhois-opt-out: \n"
+    )
+    assert JokerResponse.parse(raw).as_dict() == {"whois-opt-out": ""}
