@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "joker-dmapi"
+version = "0.2.0"
+description = "Python client and CLI for the Joker.com DMAPI, usable as a lego DNS-01 exec provider"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "Alexander D. Kanevskiy", email = "kad@blackcatlinux.com" }]
+dependencies = ["requests>=2.31"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Typing :: Typed",
+]
+
+[project.scripts]
+joker-dmapi = "joker_dmapi.cli:main"
+
+[dependency-groups]
+dev = ["mypy>=1.10", "pytest>=8", "pytest-cov>=5", "responses>=0.25", "ruff>=0.6", "shiv>=1.0", "types-requests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/joker_dmapi"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# CPY001 is a preview rule; only the rules named in select are switched on.
+preview = true
+explicit-preview-rules = true
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "PTH", "RET", "PL", "TRY", "ANN", "D", "RUF", "CPY001"]
+ignore = ["D203", "D213", "TRY003", "PLR0913", "PLR0917"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D", "ANN", "PLR2004", "S101"]
+"src/joker_dmapi/cli.py" = ["PLR0912", "PLR0915"]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
