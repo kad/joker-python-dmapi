@@ -85,8 +85,23 @@ lego -m admin@example.com -a --dns exec -d '*.example.com' run
 
 ```shell
 make install   # uv sync
-make check     # ruff, mypy, pytest
+make check     # ruff, mypy, ty, pytest
 ```
+
+## Releases
+
+Pushing a tag like `v0.3.0` runs the checks, then publishes a GitHub release with the wheel, sdist,
+the single-file `.pyz`, a `checksums.txt` and build provenance attestations. The release notes are
+generated from the commit subjects since the previous tag by [git-cliff](https://git-cliff.org)
+(see `cliff.toml`). Tags containing a `-` (such as `v0.3.0-rc1`) are marked as pre-releases.
+
+```shell
+# bump version in pyproject.toml, commit, then:
+git tag v0.3.0 && git push origin v0.3.0
+```
+
+The tag must match the `version` in `pyproject.toml`. To also upload to PyPI, configure a trusted
+publisher for `release.yml` (environment `pypi`) and set the repository variable `PUBLISH_PYPI=true`.
 
 ## Changes in 0.2.0
 

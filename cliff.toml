@@ -1,0 +1,28 @@
+# git-cliff configuration for release notes. Commits here are plain imperative
+# sentences rather than Conventional Commits, so they are listed as-is.
+[changelog]
+header = ""
+body = """
+## What's changed
+{% for commit in commits %}
+- {{ commit.message | split(pat="\\n") | first | trim }} ({{ commit.id | truncate(length=7, end="") }})\
+{% endfor %}
+{% if previous.version %}
+
+**Full changelog**: https://github.com/kad/joker-python-dmapi/compare/{{ previous.version }}...{{ version }}
+{% endif %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = false
+filter_unconventional = false
+protect_breaking_commits = false
+filter_commits = false
+tag_pattern = "v[0-9]*"
+sort_commits = "oldest"
+commit_parsers = [
+    { message = "^Merge (pull request|branch|remote-tracking)", skip = true },
+    { message = "^(chore|ci)\\(release\\)", skip = true },
+]
