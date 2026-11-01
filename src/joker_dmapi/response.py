@@ -62,8 +62,11 @@ class JokerResponse:
 
     @property
     def status(self) -> Status:
-        """Status-Code and Status-Text; code is -1 when the header is missing."""
-        code = int(self.headers["Status-Code"]) if "Status-Code" in self.headers else -1
+        """Status-Code and Status-Text; code is -1 when the header is missing or not a number."""
+        try:
+            code = int(self.headers.get("Status-Code", ""))
+        except ValueError:
+            code = -1
         return Status(code, self.headers.get("Status-Text", ""))
 
     @property

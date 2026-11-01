@@ -126,3 +126,19 @@ def test_domain_get_properties_first_error_is_raised(client: Joker, mocked: resp
     mocked.get(f"{BASE}/domain-get-property", body=reply(code=2000, text="no such domain"))
     with pytest.raises(JokerAPIError):
         client.domain_get_properties("nope.com")
+
+
+def test_skipped_property_is_logged_as_warning(
+    client: Joker, mocked: responses.RequestsMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    def cb(request: object) -> tuple[int, dict[str, str], str]:
+        name = parse_qs(urlparse(request.url).query)["pname"][0]  # type: ignore[attr-defined]
+        if name == "privacy":
+            return 200, {}, reply(code=2000, text="not available")
+        return 200, {}, reply(f"{name}: 1")
+
+    mocked.add_callback(responses.GET, f"{BASE}/domain-get-property", callback=cb)
+    with caplog.at_level("WARNING", logger="joker_dmapi"):
+        result = client.domain_get_properties("x.com")
+    assert "privacy" not in result
+    assert "property privacy not available for x.com" in caplog.text

@@ -239,3 +239,36 @@ def test_debug_log_omits_secret_bodies(
     assert "body omitted (2 lines)" in caplog.text
     assert "autorenew: 1" in caplog.text  # harmless replies are still shown in full
     assert "sid123" not in caplog.text
+
+
+def test_malformed_logout_does_not_mask_body_error(mocked: responses.RequestsMock) -> None:
+    mocked.post(f"{BASE}/login", body=LOGIN_OK)
+    mocked.get(f"{BASE}/logout", body="Status-Code: abc\n\n")
+    with pytest.raises(RuntimeError, match="original"), Joker(api_key="k"):
+        raise RuntimeError("original")
+
+
+def test_unexpected_logout_exception_does_not_mask_body_error(
+    mocked: responses.RequestsMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mocked.post(f"{BASE}/login", body=LOGIN_OK)
+
+    def boom(self: Joker) -> None:
+        raise KeyError("surprise")
+
+    monkeypatch.setattr(Joker, "logout", boom)
+    with pytest.raises(RuntimeError, match="original"), Joker(api_key="k"):
+        raise RuntimeError("original")
+
+
+def test_keyboard_interrupt_in_logout_propagates(
+    mocked: responses.RequestsMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mocked.post(f"{BASE}/login", body=LOGIN_OK)
+
+    def interrupt(self: Joker) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(Joker, "logout", interrupt)
+    with pytest.raises(KeyboardInterrupt), Joker(api_key="k"):
+        pass
