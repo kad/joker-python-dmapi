@@ -151,10 +151,14 @@ class Joker:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        """Log out. A failed logout is logged and never hides the original error."""
+        """Log out. A failed logout is logged and never hides the original error.
+
+        Any ``Exception`` from logout is caught, so an odd reply can't replace an error raised in
+        the ``with`` body. ``KeyboardInterrupt`` and other non-``Exception`` signals still propagate.
+        """
         try:
             self.logout()
-        except JokerError as e:
+        except Exception as e:
             log.warning("logout failed: %s", e)
         finally:
             self._session.close()
@@ -382,7 +386,7 @@ class Joker:
             try:
                 result[name] = self.domain_get_property(domain, name)
             except JokerAPIError as e:
-                log.debug("property %s not available for %s: %s", name, domain, e)
+                log.warning("property %s not available for %s: %s", name, domain, e)
         return result
 
     def grants_list(self, domain: str, *, show_key: bool = False) -> list[list[str]]:

@@ -58,3 +58,9 @@ def test_as_dict_leaves_out_protocol_headers() -> None:
         "Timing: 0.005/0.12 4.7%\n\nwhois-opt-out: \n"
     )
     assert JokerResponse.parse(raw).as_dict() == {"whois-opt-out": ""}
+
+
+def test_non_numeric_status_code_is_minus_one() -> None:
+    r = JokerResponse.parse("Status-Code: abc\nStatus-Text: odd\n\n")
+    assert r.status == (-1, "odd")
+    assert not r.ok
