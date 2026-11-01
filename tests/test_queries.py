@@ -5,6 +5,7 @@ from decimal import Decimal
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+import requests
 import responses
 
 from joker_dmapi import AccountBalance, Joker, JokerAPIError
@@ -96,8 +97,8 @@ def test_result_retrieve_needs_id(client: Joker) -> None:
 
 
 def test_domain_get_properties_skips_unsupported(client: Joker, mocked: responses.RequestsMock) -> None:
-    def cb(request: object) -> tuple[int, dict[str, str], str]:
-        name = parse_qs(urlparse(request.url).query)["pname"][0]  # type: ignore[attr-defined]
+    def cb(request: requests.PreparedRequest) -> tuple[int, dict[str, str], str]:
+        name = parse_qs(urlparse(str(request.url)).query)["pname"][0]
         if name == "whois-opt-out":
             return 200, {}, reply(code=2000, text="not supported")
         return 200, {}, reply(f"{name}: 1")
@@ -131,8 +132,8 @@ def test_domain_get_properties_first_error_is_raised(client: Joker, mocked: resp
 def test_skipped_property_is_logged_as_warning(
     client: Joker, mocked: responses.RequestsMock, caplog: pytest.LogCaptureFixture
 ) -> None:
-    def cb(request: object) -> tuple[int, dict[str, str], str]:
-        name = parse_qs(urlparse(request.url).query)["pname"][0]  # type: ignore[attr-defined]
+    def cb(request: requests.PreparedRequest) -> tuple[int, dict[str, str], str]:
+        name = parse_qs(urlparse(str(request.url)).query)["pname"][0]
         if name == "privacy":
             return 200, {}, reply(code=2000, text="not available")
         return 200, {}, reply(f"{name}: 1")

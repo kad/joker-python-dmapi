@@ -21,7 +21,16 @@ classifiers = [
 joker-dmapi = "joker_dmapi.cli:main"
 
 [dependency-groups]
-dev = ["mypy>=1.10", "pytest>=8", "pytest-cov>=5", "responses>=0.25", "ruff>=0.6", "shiv>=1.0", "types-requests"]
+dev = [
+    "mypy>=1.10",
+    "pytest>=8",
+    "pytest-cov>=5",
+    "responses>=0.25",
+    "ruff>=0.6",
+    "shiv>=1.0",
+    "ty>=0.0.95",
+    "types-requests",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/joker_dmapi"]
@@ -52,3 +61,6 @@ files = ["src", "tests"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.ty.src]
+include = ["src", "tests"]

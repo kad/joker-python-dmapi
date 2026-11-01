@@ -20,6 +20,7 @@ fmt-check:
 
 typecheck:
 	$(RUN) mypy
+	$(RUN) ty check
 
 test:
 	$(RUN) pytest --cov=joker_dmapi --cov-report=term-missing
