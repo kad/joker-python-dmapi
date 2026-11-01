@@ -223,13 +223,19 @@ def test_redirect_is_an_error(mocked: responses.RequestsMock) -> None:
     assert len(mocked.calls) == 1  # the redirect target was not requested
 
 
-def test_debug_log_shows_reply_but_not_login(
+def test_debug_log_omits_secret_bodies(
     client: Joker, mocked: responses.RequestsMock, caplog: pytest.LogCaptureFixture
 ) -> None:
-    mocked.get(f"{BASE}/dns-zone-get", body=reply("@ A 0 1.2.3.4 300"))
+    zone = "@ A 0 1.2.3.4 300\n$dyndns=yes:user:hunter2"
+    mocked.get(f"{BASE}/dns-zone-get", body=reply(zone))
+    mocked.get(f"{BASE}/domain-get-property", body=reply("autorenew: 1"))
     with caplog.at_level("DEBUG", logger="joker_dmapi"):
         client.dns_zone_get("example.com")
+        client.domain_get_property("example.com", "autorenew")
         mocked.post(f"{BASE}/login", body=LOGIN_OK)
         client.login()
-    assert "@ A 0 1.2.3.4 300" in caplog.text
+    assert "hunter2" not in caplog.text
+    assert "dns-zone-get reply" in caplog.text
+    assert "body omitted (2 lines)" in caplog.text
+    assert "autorenew: 1" in caplog.text  # harmless replies are still shown in full
     assert "sid123" not in caplog.text

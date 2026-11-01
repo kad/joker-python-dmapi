@@ -46,6 +46,20 @@ _ACCOUNT_HEADERS = (
     "User-Login",
 )
 _TXT_LINE = re.compile(r'^(?P<label>\S+)\s+TXT\s+\d+\s+"(?P<value>.*?)"(?:\s+\d+)?\s*$', re.IGNORECASE)
+# Replies of these commands are logged in full at DEBUG. Everything else, zones and results
+# included, logs only its headers, because bodies can hold DynDNS credentials, invitation
+# keys or transfer codes.
+_LOGGABLE_BODY = frozenset(
+    {
+        "domain-check",
+        "domain-get-property",
+        "dns-zone-list",
+        "logout",
+        "query-domain-list",
+        "query-ns-list",
+        "query-order-list",
+    }
+)
 _FORBIDDEN = re.compile(r'[\x00-\x1f"\\]')
 
 
@@ -165,9 +179,17 @@ class Joker:
         if resp.status_code != requests.codes.ok:
             msg = f"{command}: unexpected HTTP status {resp.status_code}"
             raise JokerConnectionError(msg)
-        if command != "login":  # the login reply carries the session id and account details
+        response = JokerResponse.parse(resp.text)
+        if command in _LOGGABLE_BODY:
             log.debug("%s reply:\n%s", command, resp.text)
-        return JokerResponse.parse(resp.text)
+        elif command != "login":  # the login reply carries the session id and account details
+            log.debug(
+                "%s reply: %s; body omitted (%d lines)",
+                command,
+                dict(response.headers),
+                len(response.body.splitlines()),
+            )
+        return response
 
     def _checked(
         self, command: str, params: Mapping[str, str] | None = None, *, post: bool = False
